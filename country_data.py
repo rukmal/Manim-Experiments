@@ -1,5 +1,7 @@
-from configparser import ConverterMapping
-from typing import List
+from altitude import AltitudeInterpolator
+from shapely.geometry import Point, Polygon
+from shapely.ops import unary_union, nearest_points
+from typing import Callable, List
 import json
 import numpy as np
 import requests
@@ -7,9 +9,11 @@ import requests
 
 class CountryData:
     base_df: dict
+    al: AltitudeInterpolator
 
     def __init__(self):
         self.base_df = json.loads(open("countries.geojson", "r").read())
+        self.al = AltitudeInterpolator()
 
     def get_country_data(self, iso_a3: str) -> dict:
         for feature in self.base_df["features"]:
@@ -146,34 +150,87 @@ class CountryData:
 
         return [list(i) for i in scaled_polys]
 
-    def get_points_in_country(point_count, iso_a3):
-        pass
+    def get_longitude_and_latitude_from_scaled_xy(
+        self, iso_a3: str, x: float, y: float
+    ) -> List[float]:
+        # Need scaling factor of the country
+        # Need lower bounds for latitude and longitude of the country
+        # Return [min_longitude + x * scaling_factor, min_latitude + y * scaling_factor]
+        # Get country geometry
+        country_polys = self.get_country_geometry(iso_a3)
 
-
-class OpenElevationAPI:
-    base_url: str = "https://api.open-elevation.com/api/v1/lookup"
-
-    @staticmethod
-    def get_elevation(latitude: float, longitude: float) -> float:
-        # Post request to base_url with latitude and longitude in body
-        response = requests.post(
-            OpenElevationAPI.base_url,
-            data=json.dumps(
-                {
-                    "locations": [
-                        {
-                            "latitude": latitude,
-                            "longitude": longitude,
-                        }
-                    ]
-                }
-            ),
-            headers={"Content-Type": "application/json"},
-            params={"accept": "application/json"},
+        # Compute scaling factor by getting range of dimension with max variance
+        max_axis = np.argmax(
+            [
+                self.get_max_along_axis(country_polys, 0),
+                self.get_max_along_axis(country_polys, 1),
+            ]
         )
+        scale_factor = self.get_max_along_axis(
+            country_polys, max_axis
+        ) - self.get_min_along_axis(country_polys, max_axis)
+        min_values = [
+            self.get_min_along_axis(country_polys, 0),
+            self.get_min_along_axis(country_polys, 1),
+        ]
 
-        # Return elevation value
-        try:
-            return float(response.json()["results"][0]["elevation"])
-        except:
-            return None
+        # Compute longitude and latitude
+        longitude = (x * scale_factor) + min_values[0]
+        latitude = (y * scale_factor) + min_values[1]
+
+        return [longitude, latitude]
+
+    def build_uv_for_country(
+        self, iso_a3: str, include_altitude: bool = True
+    ) -> Callable:
+        country_poly = self.get_country_polygon(iso_a3)
+
+        # Defining uv map function
+        def uv_map(u, v):
+            point = Point(u, v)
+            if not country_poly.contains(point):
+                # Get closest point on polygon
+                u, v = self.__get_nearest_point_on_polygon(country_poly, u, v)
+            # Compute actual latitude and longitude for API call
+            lon, lat = self.get_longitude_and_latitude_from_scaled_xy(iso_a3, u, v)
+            if include_altitude:
+                # Get altitude from altitude interpolator
+                altitude = self.al.get_altitude(latitude=lat, longitude=lon)
+                return np.array([lon, lat, altitude])
+            else:
+                return np.array([lon, lat, 0.0])
+
+        return uv_map
+
+    def get_country_polygon(self, iso_a3: str) -> Polygon:
+        """Returns a polygon of the country.
+
+        Arguments:
+            iso_a3 {str} -- ISO A3 country code.
+
+        Returns:
+            Polygon -- Polygon of the country.
+        """
+
+        two_d_country = self.get_country_geometry_scaled(iso_a3, add_z=False)
+        two_d_polygons = []
+        for poly in two_d_country:
+            two_d_polygons.append(Polygon(np.array(poly)))
+        two_d_country_poly = unary_union(two_d_polygons)
+        return two_d_country_poly
+
+    def __get_nearest_point_on_polygon(
+        self, polygon: Polygon, x: float, y: float
+    ) -> List[float]:
+        """Returns the nearest point on a polygon to a given point.
+
+        Arguments:
+            polygon {Polygon} -- Polygon.
+            x {float} -- x coordinate of point.
+            y {float} -- y coordinate of point.
+
+        Returns:
+            Point -- Nearest point on polygon.
+        """
+
+        return list(nearest_points(Point(x, y), polygon)[1].coords)[0]

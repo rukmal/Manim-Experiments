@@ -9,9 +9,7 @@ class CountryData:
     base_df: dict
 
     def __init__(self):
-        self.base_df = json.loads(
-            open("/Users/rukmal/Downloads/countries.geojson", "r").read()
-        )
+        self.base_df = json.loads(open("countries.geojson", "r").read())
 
     def get_country_data(self, iso_a3: str) -> dict:
         for feature in self.base_df["features"]:
@@ -147,6 +145,9 @@ class CountryData:
             scaled_polys.append(scaled_poly)
 
         return [list(i) for i in scaled_polys]
+
+    def get_points_in_country(point_count, iso_a3):
+        pass
 
 
 class OpenElevationAPI:

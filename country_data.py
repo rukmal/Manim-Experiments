@@ -1,6 +1,8 @@
 from altitude import AltitudeInterpolator
+from scipy.spatial import Delaunay
 from shapely.geometry import Point, Polygon
 from shapely.ops import unary_union, nearest_points
+from trimesh import Trimesh
 from typing import Callable, List
 import json
 import numpy as np
@@ -180,10 +182,37 @@ class CountryData:
 
         return [longitude, latitude]
 
-    def build_uv_for_country(
-        self, iso_a3: str, include_altitude: bool = True
+    def get_country_verts_and_tris(
+        self, iso_a3: str, resolution: int = 100, include_altitude: bool = True
     ) -> Callable:
         country_poly = self.get_country_polygon(iso_a3)
+
+        # Getting vertex map
+        verts = []
+        for u in np.linspace(0, 1, resolution):
+            for v in np.linspace(0, 1, resolution):
+                point = Point(u, v)
+                if not country_poly.contains(point):
+                    # Go to next iteration
+                    continue
+                # Compute actual latitude and longitude for altitude lookup
+                lon, lat = self.get_longitude_and_latitude_from_scaled_xy(iso_a3, u, v)
+                if include_altitude:
+                    # Get altitude from altitude interpolator
+                    altitude = self.al.get_altitude(latitude=lat, longitude=lon)
+                    verts.append(np.array([u, v, altitude]))
+                else:
+                    verts.append(np.array([u, v, 0.0]))
+
+        # Compute tris with Delaunay triangulation
+        verts = np.array(verts)
+        tris = Delaunay(verts[:, :2]).simplices
+
+        # Create trimesn to process
+        tm = Trimesh(vertices=verts, faces=tris, process=True)
+        verts = tm.vertices
+        tris = tm.faces
+        return verts, tris
 
         # Defining uv map function
         def uv_map(u, v):

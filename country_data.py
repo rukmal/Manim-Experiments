@@ -1,12 +1,11 @@
 from altitude import AltitudeInterpolator
 from scipy.spatial import Delaunay
 from shapely.geometry import Point, Polygon
-from shapely.ops import unary_union, nearest_points
+from shapely.ops import nearest_points, unary_union
 from trimesh import Trimesh
-from typing import Callable, List
+from typing import List, Tuple
 import json
 import numpy as np
-import requests
 
 
 class CountryData:
@@ -183,8 +182,12 @@ class CountryData:
         return [longitude, latitude]
 
     def get_country_verts_and_tris(
-        self, iso_a3: str, resolution: int = 100, include_altitude: bool = True
-    ) -> Callable:
+        self,
+        iso_a3: str,
+        resolution: int = 100,
+        include_altitude: bool = True,
+        return_trimesh: bool = False,
+    ) -> Tuple[np.array, np.array, Trimesh]:
         country_poly = self.get_country_polygon(iso_a3)
 
         # Getting vertex map
@@ -212,6 +215,9 @@ class CountryData:
         tm = Trimesh(vertices=verts, faces=tris, process=True)
         verts = tm.vertices
         tris = tm.faces
+
+        if return_trimesh:
+            return verts, tris, tm
         return verts, tris
 
         # Defining uv map function

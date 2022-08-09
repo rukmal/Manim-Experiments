@@ -1,5 +1,5 @@
 from country_data import CountryData
-from manim import Polyhedron, ThreeDScene, DEGREES, ORIGIN, Create
+from manim import Polyhedron, ThreeDScene, DEGREES, ORIGIN, Create, PI
 import csv
 
 
@@ -65,6 +65,6 @@ class CountrySurfaceTest(ThreeDScene):
         self.add(lk)
         self.remove(lk.graph)
         lk.move_to(ORIGIN)
-        # self.begin_ambient_camera_rotation(rate=0.25 * PI)
-        # self.play(Create(lk), run_time=3)
-        # self.wait(4)
+        self.begin_ambient_camera_rotation(rate=0.25 * PI)
+        self.play(Create(lk), run_time=3)
+        self.wait(4)

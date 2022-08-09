@@ -7,6 +7,4 @@ To run:
 manim --disable_caching -qm --renderer=opengl sphere_and_cube.py SphereAndCube --write_to_movie
 ```
 
-## World Map
-
-<video src="media/videos/world_map/1080p60/WorldMapTest.mp4" width=480 />
+<video controls loop autoplay src="https://user-images.githubusercontent.com/6089694/183540106-45e7550f-23b9-491d-bc8b-8a39268248fa.mp4"></video>

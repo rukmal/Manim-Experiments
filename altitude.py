@@ -1,11 +1,11 @@
 from math import floor
 from PIL import Image
-from typing import List
+from typing import Dict, List
 import os
 
 
 class AltitudeInterpolator:
-    topography_maps: dict
+    topography_maps: Dict[str, Image.Image]
     scaling_altitude_m: float = 8848.95  # Everest altitude
     scaling_altitude_ft: int = 29032
     tile_dim = 10800

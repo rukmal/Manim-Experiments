@@ -82,7 +82,7 @@ class CountryData:
 
         return scaled_geoms
 
-    def get_max_along_axis(self, data: List[List], axis: int) -> float:
+    def get_max_along_axis(self, data: List, axis: int) -> float:
         """Returns the maximum value along a given axis.
 
         Arguments:
@@ -94,10 +94,15 @@ class CountryData:
         """
 
         max_val = -1e10
-        for poly in data:
-            for coordinate in poly:
-                if coordinate[axis] > max_val:
-                    max_val = coordinate[axis]
+
+        # We expect this to be a list of floats.
+        # If not, call recursively
+        if type(data[0]) in [list, np.ndarray]:
+            return max([self.get_max_along_axis(i, axis) for i in data])
+        if type(data[0]) is not float:
+            return max_val
+        if data[axis] > max_val:
+            max_val = data[axis]
         return max_val
 
     def get_min_along_axis(self, data: List[List], axis: int) -> float:
@@ -112,10 +117,15 @@ class CountryData:
         """
 
         min_val = 1e10
-        for poly in data:
-            for coordinate in poly:
-                if coordinate[axis] < min_val:
-                    min_val = coordinate[axis]
+
+        # We expect this to be a list of floats.
+        # If not, call recursively
+        if type(data[0]) in [list, np.ndarray]:
+            return min([self.get_min_along_axis(i, axis) for i in data])
+        if type(data[0]) is not float:
+            return min_val
+        if data[axis] < min_val:
+            min_val = data[axis]
         return min_val
 
     def __compute_scaled_geometries_from_polys(
